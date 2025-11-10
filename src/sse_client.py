@@ -13,57 +13,57 @@ from src.utils import remove_headers
 
 # Custom logging functions
 def log_info(msg):
-    return raw_log_info(f"[sse_client] {msg}")
+    return raw_log_info(f"[mcp_client] {msg}")
 
 def log_warning(msg):
-    return raw_log_warning(f"[sse_client] {msg}")
+    return raw_log_warning(f"[mcp_client] {msg}")
 
 def log_error(msg):
-    return raw_log_error(f"[sse_client] {msg}")
+    return raw_log_error(f"[mcp_client] {msg}")
 
-# Extract the memory streams from the SSE client
+# Extract the memory streams from the MCP client
 async def extract_memory_streams(
     read_stream: MemoryObjectReceiveStream[SessionMessage | Exception],
     write_stream: MemoryObjectSendStream[SessionMessage],
 ):
     return read_stream, write_stream
 
-# SSEClient class to handle SSE connections
-class SSEClient:
+# MCPclient class to handle MCP connections
+class MCPclient:
     def __init__(
         self,
         url: str,
         headers: dict[str, Any] | None = None,
         timeout: float = 5,
-        sse_read_timeout: float = 60 * 5,
+        read_timeout: float = 60 * 5,
     ):
         self.url = url
         self.headers = remove_headers(headers, ["Content-Length"])
         self.timeout = timeout
-        self.sse_read_timeout = sse_read_timeout
+        self.read_timeout = read_timeout
         self.read_stream = None
         self.write_stream = None
 
     async def connect(self):
-        log_error("Connecting to SSE server...")
+        log_error("Connecting to MCP server...")
         log_info(f"URL: {self.url}")
         log_info(f"Headers: {self.headers}")
-        self._sse_context = sse_client(
+        self._mcp_context = sse_client(
             self.url,
             headers=self.headers,
             timeout=self.timeout,
-            sse_read_timeout=self.sse_read_timeout,
+            sse_read_timeout=self.read_timeout,
         )
-        log_error("SSE client context created")
-        print(self._sse_context)
-        streams = await self._sse_context.__aenter__()
-        log_error("SSE streams created")
+        log_error("MCP client context created")
+        print(self._mcp_context)
+        streams = await self._mcp_context.__aenter__()
+        log_error("MCP streams created")
         self.read_stream, self.write_stream = await extract_memory_streams(*streams)
-        log_error("SSE streams extracted")
+        log_error("MCP streams extracted")
 
     async def send(self, msg: str):
         if not self.write_stream:
-            raise RuntimeError("SSEClient is not connected")
+            raise RuntimeError("MCPclient is not connected")
         
         session_message = SessionMessage(JSONRPCMessage(msg))
         await self.write_stream.send(session_message)
@@ -71,7 +71,7 @@ class SSEClient:
     async def receive(self, wait_timeout: int = 1):
         log_info("Receiving message...")
         if not self.read_stream:
-            raise RuntimeError("SSEClient is not connected")
+            raise RuntimeError("MCPclient is not connected")
         try:
             with move_on_after(wait_timeout) as cancel_scope:
                 message = await self.read_stream.receive()
@@ -105,6 +105,6 @@ class SSEClient:
             raise
 
     async def close(self):
-        if self._sse_context:
-            await self._sse_context.__aexit__(None, None, None)
-            self._sse_context = None
+        if self._mcp_context:
+            await self._mcp_context.__aexit__(None, None, None)
+            self._mcp_context = None

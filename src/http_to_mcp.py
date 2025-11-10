@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from contextlib import asynccontextmanager
-from src.sse_client import SSEClient
+from src.sse_client import MCPclient
 from src.utils import log_info, log_warning
 from uuid import uuid4
 
@@ -35,7 +35,7 @@ async def sync_messages_endpoint(request: Request, session_id: str = None):
         log_info(f"Reusing existing connection for session ID: {session_id}")
     else:
         global remote_url
-        client = SSEClient(url=app_http.remote_url, headers=request.headers)
+        client = MCPclient(url=app_http.remote_url, headers=request.headers)
         await client.connect()
         connections[session_id] = client
         log_info(f"New connection established for session ID: {session_id}")
@@ -84,7 +84,7 @@ async def sse_endpoint(request: Request):
         log_info(f"Reusing existing connection for session ID: {session_id}")
     else:
         global remote_url
-        client = SSEClient(url=app.remote_url)
+        client = MCPclient(url=app.remote_url)
         await client.connect()
         connections[session_id] = client
         log_info(f"New connection established for session ID: {session_id}")
