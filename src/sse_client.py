@@ -3,6 +3,7 @@
 from typing import Any
 from mcp.client.sse import sse_client
 from mcp.types import JSONRPCMessage
+from mcp.shared.message import SessionMessage
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from anyio import move_on_after, EndOfStream
 from src.utils import log_info as raw_log_info
@@ -22,8 +23,8 @@ def log_error(msg):
 
 # Extract the memory streams from the SSE client
 async def extract_memory_streams(
-    read_stream: MemoryObjectReceiveStream[JSONRPCMessage | Exception],
-    write_stream: MemoryObjectSendStream[JSONRPCMessage],
+    read_stream: MemoryObjectReceiveStream[SessionMessage | Exception],
+    write_stream: MemoryObjectSendStream[SessionMessage],
 ):
     return read_stream, write_stream
 
@@ -64,8 +65,8 @@ class SSEClient:
         if not self.write_stream:
             raise RuntimeError("SSEClient is not connected")
         
-        json_message = JSONRPCMessage(msg)
-        await self.write_stream.send(json_message)
+        session_message = SessionMessage(JSONRPCMessage(msg))
+        await self.write_stream.send(session_message)
 
     async def receive(self, wait_timeout: int = 1):
         log_info("Receiving message...")
@@ -90,8 +91,8 @@ class SSEClient:
 
             # Parse the message to JSON
             for i in range(len(message)):
-                if isinstance(message[i], JSONRPCMessage):
-                    message[i] = message[i].dict()
+                if isinstance(message[i], SessionMessage):
+                    message[i] = message[i].message.dict()
                 elif isinstance(message[i], Exception):
                     raise message[i]
                 
