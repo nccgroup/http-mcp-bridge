@@ -19,15 +19,15 @@ async def lifespan(app: FastAPI):
 
 app_http = FastAPI(lifespan=lifespan)
 
-@app_http.get("/sse")
-@app_http.get("/sse/messages")
-@app_http.post("/sse/messages/{session_id}")
+@app_http.get("/mcp")
+@app_http.get("/mcp/messages")
+@app_http.post("/mcp/messages/{session_id}")
 async def sync_messages_endpoint(request: Request, session_id: str = None):
     # Check if the session ID is provided in the URL and valid
     if (not session_id) or (session_id not in connections):
         session_id = str(uuid4())
         connections[session_id] = None
-        raise HTTPException(status_code=400, detail=f"Invalid session id. Try /sse/messages/{session_id}")
+        raise HTTPException(status_code=400, detail=f"Invalid session id. Try /mcp/messages/{session_id}")
 
     # Check if the session ID is already in use    
     if connections[session_id]:
