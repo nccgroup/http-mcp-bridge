@@ -1,8 +1,8 @@
 # HTTP MCP Bridge
 
-This project implements an HTTP server that acts as a bridge between HTTP/1.1 requests and Server-Sent Events (SSE) using the `mcp` python library ([GitHub](https://github.com/modelcontextprotocol/python-sdk/)).
+This project implements an HTTP server that acts as a bridge between HTTP/1.1 requests and a remote MCP server, using the `mcp` python library ([GitHub](https://github.com/modelcontextprotocol/python-sdk/)).
 
-The main purpose of this initiative is to be able to use HTTP security tools to test remote MCP servers using the HTTP+SSE transport mechanism.
+The main purpose of this initiative is to be able to use HTTP security tools to test remote MCP servers using the remote transport mechanisms (HTTP+SSE or Streamable HTTP).
 
 ## Installation
 
@@ -16,15 +16,21 @@ pip install -r requirements.txt
 
 ## Running The Bridge
 
-To run the HTTP server, execute the following command:
+To run the HTTP server, execute the following command for Streamable HTTP transport:
+
+```bash
+python3 main.py --remote-url="http://127.0.0.1:8787/mcp"
+```
+
+or the following for HTTP+SSE transport:
 
 ```bash
 python3 main.py --remote-url="http://127.0.0.1:8787/sse"
 ```
 
-The HTTP server will be listening in the default interface and port (`http://127.0.0.1:8000`), and the SEE connection will be established to the provided remote URL (`http://127.0.0.1:8787/sse`). A remote MCP server with HTTP+SSE support should exist in the given url.
+The HTTP server will be listening in the default interface and port (`http://127.0.0.1:8000`), and the MCP connection will be established to the provided remote URL. A remote MCP server with the corresponding transport support should exist in the given url.
 
-You can then send HTTP requests to the server, which will relay them to the SSE clients.
+You can then send HTTP requests to the server, which will relay them to the SSE/Streamable HTTP clients.
 
 ## Remote MCP Servers (for testing purposes)
 
@@ -32,7 +38,7 @@ You can then send HTTP requests to the server, which will relay them to the SSE 
 
 ## Usage
 
-The original HTTP+SSE mechanism establishes a read channel with the `/see` endpoint and a write channel with the `/messages/` endpoint. This HTTP to MCP Bridge forward HTTP requests to the write channel, and waits for the response (if applicable) in the read channel. Once received, that response is forwarded as the response of the HTTP request.
+The mechanism implemented in the python SDK establishes a read channel and a write channel to communicate with the endpoint using the corresponding transport mechanism. This HTTP to MCP Bridge forwards HTTP requests to the write channel, and waits for the response (if applicable) in the read channel. Once received, that response is forwarded as the response of the HTTP request.
 
 HTTP requests support the parameter `timeout`, which limits the maximum amount of seconds that the bridge waits for the response in the read channel before returning and error message. If timeout is zero, the HTTP to MCP Bridge does not wait at all.
 
@@ -42,7 +48,7 @@ Since the HTTP to MCP Bridge supports several sessions with the MCP server, the 
 
 Request:
 ```http
-GET /sse/messages HTTP/1.1
+GET /mcp/messages HTTP/1.1
 Host: 127.0.0.1:8000
 Accept-Encoding: gzip, deflate, br
 Connection: keep-alive
@@ -61,10 +67,35 @@ content-length: 87
 content-type: application/json
 ```
 ```json
-{"detail":"Invalid session id. Try /sse/messages/7fc2cce5-3b0b-4d63-9df6-e703c1df091c"}
+{"detail":"Invalid session id. Try /mcp/messages/7fc2cce5-3b0b-4d63-9df6-e703c1df091c"}
 ```
 
-This session id is different and independent than the session id established between the SSE client and the server. The latter is handled by the `mcp` library under the hood.
+This session id is different and independent than the session id established between the MCP client and the server. The latter is handled by the `mcp` library under the hood.
+
+### Ping
+
+There is a ping method than can be invoked to verify that the MCP service is there and the chosen transport mechanism is correct.
+
+Request:
+```http
+POST /mcp/messages/7fc2cce5-3b0b-4d63-9df6-e703c1df091c HTTP/1.1
+Host: 127.0.0.1:8000
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+User-Agent: python-httpx/0.28.1
+Content-Type: application/json
+Cache-Control: no-store
+Authorization: Bearer [REDACTED]
+Content-Length: 40
+```
+```json
+{"method":"ping","jsonrpc":"2.0","id":2}
+```
+
+Response:
+```json
+[{"jsonrpc":"2.0","id":2,"result":{}}]
+```
 
 ### Initialization Handshake
 
@@ -72,7 +103,7 @@ The first step in an MCP communication is the initialization handshake, where bo
 
 Request:
 ```http
-POST /sse/messages/7fc2cce5-3b0b-4d63-9df6-e703c1df091c HTTP/1.1
+POST /mcp/messages/7fc2cce5-3b0b-4d63-9df6-e703c1df091c HTTP/1.1
 Host: 127.0.0.1:8000
 Accept-Encoding: gzip, deflate, br
 Connection: keep-alive
@@ -97,7 +128,7 @@ The handshake needs to be closed using this message, which does not have a respo
 
 Request:
 ```http
-POST /sse/messages/7fc2cce5-3b0b-4d63-9df6-e703c1df091c?timeout=0 HTTP/1.1
+POST /mcp/messages/7fc2cce5-3b0b-4d63-9df6-e703c1df091c?timeout=0 HTTP/1.1
 Host: 127.0.0.1:8000
 Accept-Encoding: gzip, deflate, br
 Connection: keep-alive
@@ -122,7 +153,7 @@ Once the handshake has been completed, we can invoke the methods available, such
 
 Request:
 ```http
-POST /sse/messages/7fc2cce5-3b0b-4d63-9df6-e703c1df091c HTTP/1.1
+POST /mcp/messages/7fc2cce5-3b0b-4d63-9df6-e703c1df091c HTTP/1.1
 Host: 127.0.0.1:8000
 Accept-Encoding: gzip, deflate, br
 Connection: keep-alive
@@ -147,7 +178,7 @@ Finally, we can invoke tools or make use of other capabilities.
 
 Request:
 ```http
-POST /sse/messages/7fc2cce5-3b0b-4d63-9df6-e703c1df091c HTTP/1.1
+POST /mcp/messages/7fc2cce5-3b0b-4d63-9df6-e703c1df091c HTTP/1.1
 Host: 127.0.0.1:8000
 Accept-Encoding: gzip, deflate, br
 Connection: keep-alive
