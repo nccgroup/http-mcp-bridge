@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from contextlib import asynccontextmanager
-from src.mpc_client import MCPclient
+from src.mcp_client import MCPclient
 from src.utils import log_info, log_warning
 from uuid import uuid4
 
