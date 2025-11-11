@@ -1,7 +1,9 @@
 # Based on: https://github.com/modelcontextprotocol/python-sdk/blob/main/src/mcp/client/sse.py
+# And: https://github.com/modelcontextprotocol/python-sdk/blob/main/src/mcp/client/streamable_http.py
 
 from typing import Any
 from mcp.client.sse import sse_client
+from mcp.client.streamable_http import streamablehttp_client
 from mcp.types import JSONRPCMessage
 from mcp.shared.message import SessionMessage
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
@@ -21,13 +23,6 @@ def log_warning(msg):
 def log_error(msg):
     return raw_log_error(f"[mcp_client] {msg}")
 
-# Extract the memory streams from the MCP client
-async def extract_memory_streams(
-    read_stream: MemoryObjectReceiveStream[SessionMessage | Exception],
-    write_stream: MemoryObjectSendStream[SessionMessage],
-):
-    return read_stream, write_stream
-
 # MCPclient class to handle MCP connections
 class MCPclient:
     def __init__(
@@ -36,6 +31,7 @@ class MCPclient:
         headers: dict[str, Any] | None = None,
         timeout: float = 5,
         read_timeout: float = 60 * 5,
+        deprecated_sse_transport: bool = False,
     ):
         self.url = url
         self.headers = remove_headers(headers, ["Content-Length"])
@@ -43,23 +39,35 @@ class MCPclient:
         self.read_timeout = read_timeout
         self.read_stream = None
         self.write_stream = None
+        self.deprecated_sse_transport = deprecated_sse_transport
 
     async def connect(self):
         log_error("Connecting to MCP server...")
         log_info(f"URL: {self.url}")
         log_info(f"Headers: {self.headers}")
-        self._mcp_context = sse_client(
-            self.url,
-            headers=self.headers,
-            timeout=self.timeout,
-            sse_read_timeout=self.read_timeout,
-        )
-        log_error("MCP client context created")
-        print(self._mcp_context)
-        streams = await self._mcp_context.__aenter__()
+
+        if self.deprecated_sse_transport:
+            log_warning("SSE Transport (Deprecated)")
+            self._mcp_context = sse_client(
+                self.url,
+                headers=self.headers,
+                timeout=self.timeout,
+                sse_read_timeout=self.read_timeout,
+            )
+            log_error("MCP client context created")
+            self.read_stream, self.write_stream = await self._mcp_context.__aenter__()
+        else:
+            log_info("Streamable HTTP Transport")
+            self._mcp_context = streamablehttp_client(
+                self.url,
+                headers=self.headers,
+                timeout=self.timeout,
+                sse_read_timeout=self.read_timeout,
+            )
+            log_error("MCP client context created")
+            self.read_stream, self.write_stream, _ = await self._mcp_context.__aenter__()
+
         log_error("MCP streams created")
-        self.read_stream, self.write_stream = await extract_memory_streams(*streams)
-        log_error("MCP streams extracted")
 
     async def send(self, msg: str):
         if not self.write_stream:
