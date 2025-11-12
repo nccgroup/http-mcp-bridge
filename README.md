@@ -16,19 +16,13 @@ pip install -r requirements.txt
 
 ## Running The Bridge
 
-To run the HTTP server, execute the following command for Streamable HTTP transport:
+To run the HTTP server, execute the following command:
 
 ```bash
 python3 main.py --remote-url="http://127.0.0.1:8787/mcp"
 ```
 
-or the following for HTTP+SSE transport:
-
-```bash
-python3 main.py --remote-url="http://127.0.0.1:8787/sse"
-```
-
-The HTTP server will be listening in the default interface and port (`http://127.0.0.1:8000`), and the MCP connection will be established to the provided remote URL. A remote MCP server with the corresponding transport support should exist in the given url.
+The HTTP server will be listening in the default interface and port (`http://127.0.0.1:8000`), and the MCP connection will be established to the provided remote URL. A remote MCP server implementing a supported transport mechanism should exist in the given url. The HTTP server automatically detect the right transport mechanism, Streamable HTTP or HTTP+SSE.
 
 You can then send HTTP requests to the server, which will relay them to the SSE/Streamable HTTP clients.
 
