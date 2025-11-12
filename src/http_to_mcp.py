@@ -5,22 +5,18 @@ from src.utils import log_info, log_warning
 from uuid import uuid4
 
 connections = {}  # Dictionary to store active connections by session ID
-deprecated_sse_transport = False
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log_info("Starting up...")
-    if "/sse" in app.remote_url:
-        global deprecated_sse_transport
-        deprecated_sse_transport = True
-        log_warning("Using SSE Transport (Deprecated)")
     try:
         yield
     finally:
         log_info("Shutting down...")
         for session_id, client in connections.items():
             log_info(f"Closing connection for session ID: {session_id}")
-            await client.close()
+            if client:
+                await client.close()
 
 app_http = FastAPI(lifespan=lifespan)
 
@@ -39,8 +35,7 @@ async def sync_messages_endpoint(request: Request, session_id: str = None):
         client = connections[session_id]
         log_info(f"Reusing existing connection for session ID: {session_id}")
     else:
-        global remote_url, deprecated_sse_transport
-        client = MCPclient(url=app_http.remote_url, headers=request.headers, deprecated_sse_transport=deprecated_sse_transport)
+        client = MCPclient(url=app_http.remote_url, headers=request.headers)
         await client.connect()
         connections[session_id] = client
         log_info(f"New connection established for session ID: {session_id}")
