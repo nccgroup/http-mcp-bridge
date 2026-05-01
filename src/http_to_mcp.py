@@ -35,13 +35,13 @@ async def sync_messages_endpoint(request: Request, session_id: str = None):
         client = connections[session_id]
         log_info(f"Reusing existing connection for session ID: {session_id}")
     else:
-        client = MCPclient(url=app_http.remote_url, headers=request.headers)
+        client = MCPclient(url=app_http.remote_url, headers=request.headers, autodetect_transport=False)
         await client.connect()
         connections[session_id] = client
         log_info(f"New connection established for session ID: {session_id}")
 
-    # Obtain the timeout parameter from the query string (default to 1 second)
-    timeout = request.query_params.get("timeout", 1)
+    # Obtain the timeout parameter from the query string (default to 5 seconds)
+    timeout = request.query_params.get("timeout", 5)
     try:
         timeout = int(timeout)
     except ValueError:
