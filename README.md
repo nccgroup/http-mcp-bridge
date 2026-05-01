@@ -4,6 +4,10 @@ This project implements an HTTP server that acts as a bridge between HTTP/1.1 re
 
 The main purpose of this initiative is to be able to use HTTP security tools to test remote MCP servers using the remote transport mechanisms (HTTP+SSE or Streamable HTTP).
 
+## IMPORTANT NOTE!
+
+It has been observed that when sending JSON-RPC-V2 messages with the same id, using concurrent threads, it may happen that responses are merged. Please keep that in mind when using the tool in your assessment. In the meanwhile we fix this issue, make sure that you are testing using a single thread.
+
 ## Installation
 
 To get started, clone the repository and install the required dependencies:
@@ -22,7 +26,7 @@ To run the HTTP server, execute the following command:
 python3 main.py --remote-url="http://127.0.0.1:8787/mcp"
 ```
 
-The HTTP server will be listening in the default interface and port (`http://127.0.0.1:8000`), and the MCP connection will be established to the provided remote URL. A remote MCP server implementing a supported transport mechanism should exist in the given url. The HTTP server automatically detect the right transport mechanism, Streamable HTTP or HTTP+SSE.
+The HTTP server will be listening in the default interface and port (`http://127.0.0.1:8000`), and the MCP connection will be established to the provided remote URL. A remote MCP server implementing a supported transport mechanism should exist in the given url. The HTTP server used to automatically detect the right transport mechanism, Streamable HTTP or HTTP+SSE, but it was creating issues with some production environments, so it is now disabled. It used the Streamable HTTP transport mechanism by default. We'll create a flag to enforce the usage of HTTP+SSE but, in the meanwhile, you can simply edit the code and enable that transport mechanism.
 
 You can then send HTTP requests to the server, which will relay them to the SSE/Streamable HTTP clients.
 
@@ -154,7 +158,6 @@ Connection: keep-alive
 User-Agent: python-httpx/0.28.1
 Content-Type: application/json
 Cache-Control: no-store
-Authorization: Bearer [REDACTED]
 Content-Length: 46
 ```
 ```json
@@ -179,7 +182,6 @@ Connection: keep-alive
 User-Agent: python-httpx/0.28.1
 Content-Type: application/json
 Cache-Control: no-store
-Authorization: Bearer [REDACTED]
 Content-Length: 100
 ```
 ```json
