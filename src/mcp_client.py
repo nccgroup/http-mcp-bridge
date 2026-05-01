@@ -12,6 +12,7 @@ from src.utils import log_info as raw_log_info
 from src.utils import log_warning as raw_log_warning
 from src.utils import log_error as raw_log_error
 from src.utils import remove_headers
+#from src.utils import log_request, log_response
 from httpx import AsyncClient as httpxAsyncClient
 
 # Custom logging functions
@@ -64,7 +65,10 @@ class MCPclient:
             http_client = httpxAsyncClient(
                 headers=self.headers,
                 timeout=self.timeout,
-
+                #event_hooks = {
+                #    "request": [log_request],
+                #    "response": [log_response],
+                #}
             )
             self._mcp_context = streamable_http_client(
                 self.url,
