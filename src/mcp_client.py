@@ -2,8 +2,9 @@
 # And: https://github.com/modelcontextprotocol/python-sdk/blob/main/src/mcp/client/streamable_http.py
 
 from typing import Any, Literal
+from urllib.parse import urlparse
 from mcp.client.sse import sse_client
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 from mcp.types import JSONRPCMessage
 from mcp.shared.message import SessionMessage
 from anyio import move_on_after, EndOfStream
@@ -11,6 +12,7 @@ from src.utils import log_info as raw_log_info
 from src.utils import log_warning as raw_log_warning
 from src.utils import log_error as raw_log_error
 from src.utils import remove_headers
+from httpx import AsyncClient as httpxAsyncClient
 
 # Custom logging functions
 def log_info(msg):
@@ -38,7 +40,8 @@ class MCPclient:
         deprecated_sse_transport: bool = False,
     ):
         self.url = url
-        self.headers = remove_headers(headers, ["Content-Length"])
+        self.headers = remove_headers(headers, ["Content-Length", "Host"])
+        self.headers["host"] = urlparse(self.url).hostname
         self.timeout = timeout
         self.read_timeout = read_timeout
         self.read_stream = None
@@ -58,11 +61,15 @@ class MCPclient:
             )
             self.read_stream, self.write_stream = await self._mcp_context.__aenter__()
         else:
-            self._mcp_context = streamablehttp_client(
-                self.url,
+            http_client = httpxAsyncClient(
                 headers=self.headers,
                 timeout=self.timeout,
-                sse_read_timeout=self.read_timeout,
+
+            )
+            self._mcp_context = streamable_http_client(
+                self.url,
+                http_client=http_client,
+                #sse_read_timeout=self.read_timeout
             )
             self.read_stream, self.write_stream, _ = await self._mcp_context.__aenter__()
 
